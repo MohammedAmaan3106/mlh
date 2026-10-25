@@ -1,0 +1,35 @@
+{
+  "manifest_version": 3,
+  "name": "Reelsidian Audio Grabber",
+  "version": "1.2",
+  "description": "Obsidian for Reels: Capture clean audio and metadata directly from Instagram Reels and YouTube Shorts",
+  "permissions": [
+    "tabCapture",
+    "offscreen",
+    "activeTab",
+    "scripting",
+    "storage"
+  ],
+  "host_permissions": [
+    "https://www.instagram.com/*",
+    "https://*.youtube.com/*",
+    "http://localhost:5000/*",
+    "https://*.vercel.app/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Reelsidian Audio Grabber"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.instagram.com/*",
+        "https://*.youtube.com/*"
+      ],
+      "js": ["content.js"]
+    }
+  ]
+}
