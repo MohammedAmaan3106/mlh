@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reelsidian — Educational Video Intelligence & Knowledge Graph</title>
+  <meta name="description" content="Obsidian for Reels: Capture clean audio from educational social reels, transcribe with ElevenLabs, and synthesize structured study cards and knowledge graphs with Google Gemma 4.">
+
+  <!-- Typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <!-- Three.js for hardware-accelerated Fluted Glass WebGL Background -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+  <!-- D3.js & Force-Graph for Obsidian-style Interactive Knowledge Network -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+  <script src="https://unpkg.com/force-graph"></script>
+
+  <!-- Segregated Styling -->
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <!-- Fullscreen WebGL Fluted Glass Shader Canvas -->
+  <canvas id="shader-canvas"></canvas>
+
+  <div class="container">
+    <!-- Header: Minimalist typography, zero emojis, zero badges -->
+    <header>
+      <div class="logo-group">
+        <h1>Reelsidian</h1>
+        <p class="subtitle">The Obsidian for Reels — Video Intelligence & Knowledge Graph</p>
+      </div>
+
+      <!-- Main Navigation View Switcher -->
+      <div class="view-switcher">
+        <button id="viewDeckBtn" class="btn-view active" onclick="switchMainView('deck')">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+            <line x1="8" y1="21" x2="16" y2="21"></line>
+            <line x1="12" y1="17" x2="12" y2="21"></line>
+          </svg>
+          Knowledge Deck
+        </button>
+        <button id="viewGraphBtn" class="btn-view" onclick="switchMainView('graph')">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="18" cy="5" r="3"></circle>
+            <circle cx="6" cy="12" r="3"></circle>
+            <circle cx="18" cy="19" r="3"></circle>
+            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+            <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+          </svg>
+          Goal Knowledge Graph
+          <span id="graphNodesCountBadge" class="nav-count-badge">0</span>
+        </button>
+      </div>
+
+      <div class="status-group">
+        <div class="status-pill">
+          <span id="sseDot" class="status-dot"></span>
+          <span id="sseText">Connecting to Engine...</span>
+        </div>
+        <button class="btn-header btn-clear" onclick="clearDeck()">Clear Deck</button>
+      </div>
+    </header>
+
+    <!-- VIEW 1: STUDY & REPORT CARDS DECK -->
+    <div id="deckView" class="view-panel active">
+      <div class="grid">
+        <!-- Left Column: Controls & Input Trigger -->
+        <aside>
+          <!-- Extension Quick Guide -->
+          <div class="card" style="margin-bottom: 1.5rem">
+            <h2 class="card-title">Browser Extension</h2>
+            <div class="guide-step"><strong>1. Play Video:</strong> Open Instagram Reels or YouTube Shorts.</div>
+            <div class="guide-step"><strong>2. Click Icon:</strong> Tap Reelsidian in your browser toolbar to start capture.</div>
+            <div class="guide-step"><strong>3. Complete:</strong> Tap Stop or let it end. Real-time report appears on the right.</div>
+          </div>
+
+          <!-- Manual Input Card -->
+          <div class="card">
+            <div class="tabs-header">
+              <button id="tabFileBtn" class="tab-btn active" onclick="switchTab('file')">Audio File</button>
+              <button id="tabTextBtn" class="tab-btn" onclick="switchTab('text')">Quick Text</button>
+            </div>
+
+            <!-- Tab 1: Audio / Video File Upload -->
+            <div id="fileUploadSection">
+              <form id="uploadForm">
+                <div class="dropzone" onclick="document.getElementById('audioInput').click()">
+                  <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="17 8 12 3 7 8"></polyline>
+                    <line x1="12" y1="3" x2="12" y2="15"></line>
+                  </svg>
+                  <strong id="dropLabel" style="font-size: 0.9rem; color: #fff;">Select Audio / Video File</strong>
+                  <p style="font-size: 0.75rem; color: var(--text-dim); margin-top: 0.15rem">.webm, .mp3, .mp4, .m4a</p>
+                </div>
+                <input type="file" id="audioInput" accept="audio/*,video/*">
+
+                <input type="text" id="fileCreatorInput" class="input-field" placeholder="Creator Handle (e.g. @tech_lead)">
+                <input type="text" id="fileCaptionInput" class="input-field" placeholder="Reel Caption (optional)">
+
+                <button type="submit" class="btn-submit" id="fileSubmitBtn">Parse & Analyze Audio</button>
+              </form>
+            </div>
+
+            <!-- Tab 2: Quick Text / Caption Analysis -->
+            <div id="textInputSection" style="display: none;">
+              <form id="textForm">
+                <textarea id="quickTextInput" class="input-field" placeholder="Paste reel caption, notes, or spoken transcript here..."></textarea>
+                <input type="text" id="textCreatorInput" class="input-field" placeholder="Creator Handle (optional)">
+                <input type="text" id="textUrlInput" class="input-field" placeholder="Video URL (optional)">
+
+                <button type="submit" class="btn-submit" id="textSubmitBtn">Generate Knowledge Card</button>
+              </form>
+            </div>
+          </div>
+        </aside>
+
+        <!-- Right Column: Real-Time Stream Output & Session Deck -->
+        <main>
+          <!-- Themed Wave Equalizer Processing Banner -->
+          <div id="statusBanner" class="status-banner">
+            <div class="wave-loader">
+              <span></span>
+              <span></span>
+              <span></span>
+              <span></span>
+              <span></span>
+            </div>
+            <span id="statusMessage">Processing in real-time...</span>
+          </div>
+
+          <!-- Empty State (Clean SVG, Zero Emojis) -->
+          <div id="emptyState" class="empty-state">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"></rect>
+              <line x1="7" y1="2" x2="7" y2="22"></line>
+              <line x1="17" y1="2" x2="17" y2="22"></line>
+              <line x1="2" y1="12" x2="22" y2="12"></line>
+              <line x1="2" y1="7" x2="7" y2="7"></line>
+              <line x1="2" y1="17" x2="7" y2="17"></line>
+              <line x1="17" y1="17" x2="22" y2="17"></line>
+              <line x1="17" y1="7" x2="22" y2="7"></line>
+            </svg>
+            <h3>Ready for Video Analysis</h3>
+            <p>
+              Capture a video with the browser extension or upload an audio file. Spoken audio will be transcribed with ElevenLabs Scribe v2 and distilled into a comprehensive analysis and solution with Google Gemma 4.
+            </p>
+          </div>
+
+          <!-- Session Cards Deck -->
+          <div id="cardsFeed" class="cards-feed"></div>
+        </main>
+      </div>
+    </div>
+
+    <!-- VIEW 2: INTERACTIVE GOAL KNOWLEDGE GRAPH -->
+    <div id="graphView" class="view-panel" style="display: none;">
+      <div class="graph-layout">
+        <!-- Left Sidebar: Academic Goals & Aims Manager -->
+        <aside class="graph-sidebar">
+          <div class="card">
+            <h2 class="card-title">Academic Goals & Tasks</h2>
+            <p class="graph-sidebar-desc">
+              Define your academic aims or project tasks. Gemini automatically analyzes all incoming study reports and links relevant domain knowledge to your goals.
+            </p>
+
+            <form id="goalForm" class="goal-form">
+              <textarea id="goalTextInput" class="input-field" rows="3" placeholder="e.g. Master typography hierarchy and font pairings for digital UI design..."></textarea>
+              <button type="submit" class="btn-submit" id="addGoalBtn">Add Goal & Map Graph</button>
+            </form>
+
+            <div class="graph-stats-row">
+              <div class="stat-box">
+                <span id="statReportsCount" class="stat-num">0</span>
+                <span class="stat-label">Reports</span>
+              </div>
+              <div class="stat-box">
+                <span id="statGoalsCount" class="stat-num">0</span>
+                <span class="stat-label">Goals</span>
+              </div>
+              <div class="stat-box">
+                <span id="statLinksCount" class="stat-num">0</span>
+                <span class="stat-label">AI Bridges</span>
+              </div>
+            </div>
+
+            <!-- Graph Legend -->
+            <div class="graph-legend">
+              <div class="legend-item">
+                <span class="legend-dot dot-report"></span>
+                <span>Study Reports (Burnt Copper Glass)</span>
+              </div>
+              <div class="legend-item">
+                <span class="legend-dot dot-goal"></span>
+                <span>Academic Goals (Frosted Glass Cards)</span>
+              </div>
+              <div class="legend-item">
+                <span class="legend-line"></span>
+                <span>AI Bridges (Amber Particle Streams)</span>
+              </div>
+            </div>
+
+            <!-- List of Active Goals -->
+            <div class="goals-list-header">Active Goals & Aims</div>
+            <div id="goalsContainer" class="goals-container">
+              <div class="no-goals-hint">No goals defined yet. Add an academic aim above to generate graph connections.</div>
+            </div>
+          </div>
+        </aside>
+
+        <!-- Right / Center: Canvas Force-Directed Knowledge Network -->
+        <div class="graph-canvas-wrapper">
+          <div id="knowledgeGraphContainer" class="graph-canvas-container"></div>
+
+          <!-- Graph Floating Controls -->
+          <div class="graph-controls-overlay">
+            <button class="btn-graph-tool" onclick="resetGraphView()" title="Fit View">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+            </button>
+            <button class="btn-graph-tool" onclick="zoomGraph(1.2)" title="Zoom In">+</button>
+            <button class="btn-graph-tool" onclick="zoomGraph(0.8)" title="Zoom Out">−</button>
+          </div>
+
+          <!-- Connection Inspector Card (Shown on node/edge click) -->
+          <div id="connectionInspector" class="connection-inspector">
+            <div class="inspector-header">
+              <span id="inspectorBadge" class="inspector-badge">Semantic Connection</span>
+              <button class="btn-inspector-close" onclick="closeInspector()">×</button>
+            </div>
+            <h3 id="inspectorTitle" class="inspector-title">Connection Overview</h3>
+            <p id="inspectorBody" class="inspector-body">Click any node or connection line to inspect the semantic bridge reasoning.</p>
+            <div id="inspectorMeta" class="inspector-meta"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Segregated WebGL Shader & Application Logic -->
+  <script src="js/shader.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
