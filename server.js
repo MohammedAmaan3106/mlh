@@ -1,6 +1,6 @@
 /**
  * Reelsidian Real-Time Engine Entry Point
- * Production-hardened with Security Headers, Origin Controls, and Ephemeral RAM Storage.
+ * Supports both local Node.js execution and Vercel serverless functions.
  */
 
 const express = require('express');
@@ -12,48 +12,48 @@ const { securityHeaders } = require('./src/middleware/security');
 
 const app = express();
 
-// 1. Security Headers Middleware (Nosniff, X-Frame-Options, Referrer-Policy, etc.)
+// 1. Security headers
 app.use(securityHeaders);
 
-// 2. Controlled CORS Configuration
-// Allows local development, the Chrome Extension, and deployed production domains
+// 2. CORS: local development, Chrome extensions, and deployed frontends
 const allowedOriginRegex = /^(http:\/\/localhost:\d+|https:\/\/.*\.vercel\.app|chrome-extension:\/\/.*)$/;
 
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Allow requests with no origin (like mobile apps, curl, server-to-server)
+      // Requests without an Origin header include curl and server-to-server calls.
       if (!origin || allowedOriginRegex.test(origin)) {
         return callback(null, true);
       }
-      return callback(null, true); // Fallback gracefully while still setting proper headers
+      // Preserve the existing app's permissive CORS behavior for compatibility.
+      return callback(null, true);
     },
     methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
   })
 );
 
-// 3. Body parsers with payload bounds
+// 3. Bounded body parsers
 app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: true, limit: '2mb' }));
 
-// 4. Static frontend asset hosting
+// 4. Static frontend assets
 app.use(express.static(path.join(__dirname, 'public'), { maxAge: '1h' }));
 
-// 5. Mount API routes
+// 5. API routes
 app.use('/api', apiRoutes);
 
-// 6. Root SPA route
+// 6. SPA root
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// 7. Global 404 handler for unknown API routes
+// 7. Unknown API routes
 app.use('/api/*', (req, res) => {
   res.status(404).json({ error: 'Endpoint not found' });
 });
 
-// 8. Global Error Handler
+// 8. Error handler
 app.use((err, req, res, next) => {
   console.error('Unhandled server error:', err.message);
   res.status(err.status || 500).json({
@@ -61,23 +61,25 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Start Server
-const server = app.listen(PORT, () => {
-  console.log(`\n======================================================`);
-  console.log(`🚀 Reelsidian Production Engine active at http://localhost:${PORT}`);
-  console.log(`🔒 Security: Rate limiting & HTTP security headers active.`);
-  console.log(`✨ Ephemeral RAM pipeline: Zero disk storage, maximum privacy.`);
-  console.log(`📡 SSE Stream: http://localhost:${PORT}/api/events`);
-  console.log(`======================================================\n`);
-});
+// Vercel's @vercel/node runtime needs the Express app exported as the handler.
+// Only start a listening socket when running this file directly on a local machine.
+if (require.main === module) {
+  const server = app.listen(PORT, () => {
+    console.log('\n======================================================');
+    console.log(`🚀 Reelsidian Production Engine active at http://localhost:${PORT}`);
+    console.log('🔒 Security headers active.');
+    console.log('✨ Ephemeral RAM pipeline: zero disk storage.');
+    console.log(`📡 SSE Stream: http://localhost:${PORT}/api/events`);
+    console.log('======================================================\n');
+  });
 
-// Graceful termination handling
-process.on('SIGTERM', () => {
-  console.log('SIGTERM received. Closing server gracefully...');
-  server.close(() => process.exit(0));
-});
+  const shutdown = (signal) => {
+    console.log(`${signal} received. Closing server gracefully...`);
+    server.close(() => process.exit(0));
+  };
 
-process.on('SIGINT', () => {
-  console.log('SIGINT received. Closing server gracefully...');
-  server.close(() => process.exit(0));
-});
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
+  process.on('SIGINT', () => shutdown('SIGINT'));
+}
+
+module.exports = app;
